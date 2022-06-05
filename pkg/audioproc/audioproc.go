@@ -33,3 +33,15 @@ func Demo() {
 	})))
 	<-done
 }
+
+func PlaySineTone() {
+	sr := beep.SampleRate(44100)
+	speaker.Init(sr, sr.N(time.Second/20))
+
+	done := make(chan bool)
+
+	speaker.Play(beep.Seq(SineTone(880, 5), beep.Callback(func() {
+		done <- true
+	})))
+	<-done
+}
