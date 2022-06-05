@@ -1,4 +1,4 @@
-package jingletools
+package jingle
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 // Composer2Hib converts a file stored in jingle format to one that is understood by Hibuscus
 // Jingle was my previous adventure in audio processing so this will not be useful for anyone else
 func Composer2Hib(filename string, bpm int) (queue *audioproc.Queue, err error) {
-	framesPerSecond := float64(bpm/60) * float64(36)
+	framesPerSecond := float64(bpm/60) * float64(32)
 	var mQueue audioproc.Queue
 	filepath := path.Join(".", filename)
 	dat, err := os.Open(filepath)

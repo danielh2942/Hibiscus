@@ -6,11 +6,12 @@ import (
 	"github.com/faiface/beep"
 )
 
+// SineTone Creates a beep.Streamer that creats an x Hz Tone for y seconds!
 func SineTone(freq float64, durationSeconds float64) beep.Streamer {
 	count := 0
 	durationFrames := int(math.Floor(44100 * durationSeconds))
 	var step float64 = (math.Pi * 2.0 * freq) / 44100
-	return beep.StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
+	return beep.StreamerFunc(func(samples [][2]float64) (n int, more bool) {
 		for i := range samples {
 			if count > durationFrames {
 				return i + 1, false
