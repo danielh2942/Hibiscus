@@ -12,7 +12,7 @@ import (
 func main() {
 	//audioproc.Demo()
 	//PlayJingleSave("junk.json")
-	PlayJingleSynth("enya.json")
+	PlayJingleSynth("TR_808.json")
 	//jingle.KeyboardTest()
 }
 

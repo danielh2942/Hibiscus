@@ -22,6 +22,7 @@ type Instrument interface {
 	Stream(samples [][2]float64) (length int, ok bool)
 }
 
+// getNoteSteps is a const array for iteration speed for wavetable-based synths
 func getNoteSteps() [128]float64 {
 	return [128]float64{
 		0.03125, 0.03311, 0.03508, 0.03717, 0.03938, 0.04172, 0.0442, 0.04683, 0.04961, 0.05256, 0.05569, 0.059,
@@ -49,10 +50,14 @@ type Wavetable struct {
 	lock               sync.RWMutex
 }
 
+// Init starts the Mutex to avoid simultaneous read/writes
 func (wt *Wavetable) Init() {
+	// Save future calculation
+	wt.length = len(wt.Audiodata)
 	wt.lock = sync.RWMutex{}
 }
 
+// AddNote adds a note to the list of all present notes playing in the instrument
 func (wt *Wavetable) AddNote(note int) error {
 	wt.lock.Lock()
 	defer wt.lock.Unlock()
@@ -74,6 +79,7 @@ func (wt *Wavetable) AddNote(note int) error {
 	return nil
 }
 
+// RemoveNote removes a note from the list of playing notes in an instrument
 func (wt *Wavetable) RemoveNote(note int) error {
 	wt.lock.Lock()
 	defer wt.lock.Unlock()
@@ -88,6 +94,7 @@ func (wt *Wavetable) RemoveNote(note int) error {
 	return errors.New("note not present, ignoring")
 }
 
+// FlushNotes clears all notes being played
 func (wt *Wavetable) FlushNotes() {
 	wt.presentNotes = make([]int, 0)
 	wt.noteframePositions = map[int]float64{}
@@ -110,6 +117,7 @@ func (wt *Wavetable) ArpeggioRate(freq float64) {
 	wt.arpRate = math.Abs(freq) / 44100.0
 }
 
+// Stream populates a chunk of an audio stream
 func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
 	wt.lock.Lock()
 	defer wt.lock.Unlock()
@@ -131,6 +139,88 @@ func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
 		}
 		samples[i][0] /= float64(len(wt.presentNotes))
 		samples[i][1] /= float64(len(wt.presentNotes))
+	}
+	return len(samples), true
+}
+
+// The Second instrument type that's supported by Jingle
+type DrumKit struct {
+	Audiodata          [][]float64 `json:"audiodata"`
+	lengths            []int
+	numInstruments     int
+	presentNotes       []int
+	noteframePositions map[int]int
+	lock               sync.RWMutex
+}
+
+func (dk *DrumKit) Init() {
+	dk.lock = sync.RWMutex{}
+	dk.lengths = make([]int, len(dk.Audiodata))
+	dk.numInstruments = len(dk.Audiodata)
+	for i, k := range dk.Audiodata {
+		dk.lengths[i] = len(k)
+	}
+}
+
+func (dk *DrumKit) AddNote(note int) error {
+	dk.lock.Lock()
+	defer dk.lock.Unlock()
+	note = int(math.Abs(float64(note))) % dk.numInstruments
+	if len(dk.presentNotes) == 0 {
+		dk.presentNotes = make([]int, 1)
+		dk.presentNotes[0] = note
+		dk.noteframePositions = map[int]int{note: 0}
+	}
+	for _, key := range dk.presentNotes {
+		if key == note {
+			dk.noteframePositions[key] = 0
+			return nil
+		}
+	}
+	dk.presentNotes = append(dk.presentNotes, note)
+	dk.noteframePositions[note] = 0
+	return nil
+}
+
+func (dk *DrumKit) RemoveNote(note int) error {
+	// Drums are triggered and not gated
+	return nil
+}
+
+func (dk *DrumKit) FlushNotes() {}
+
+func (dk *DrumKit) Err() error {
+	return nil
+}
+
+func (dk *DrumKit) Arpeggio(enabled bool) {}
+
+func (dk *DrumKit) ArpeggioRate(rate float64) {}
+
+func (dk *DrumKit) Stream(samples [][2]float64) (n int, ok bool) {
+	dk.lock.Lock()
+	defer dk.lock.Unlock()
+	if len(dk.presentNotes) == 0 {
+		return 0, false
+	}
+	for i := range samples {
+		var slice float64 = 0.0
+		for _, key := range dk.presentNotes {
+			slice += dk.Audiodata[key][dk.noteframePositions[key]]
+		}
+		slice /= float64(len(dk.presentNotes))
+		samples[i][0] = slice
+		samples[i][1] = slice
+
+		for j, key := range dk.presentNotes {
+			val := dk.noteframePositions[key]
+			val++
+			if val >= dk.lengths[key] {
+				dk.presentNotes = append(dk.presentNotes[:j], dk.presentNotes[j+1:]...)
+				continue
+			}
+			dk.noteframePositions[key] = val
+		}
 	}
 	return len(samples), true
 }

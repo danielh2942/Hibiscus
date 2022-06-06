@@ -22,13 +22,18 @@ func LoadInWavetable(filename string) (Instrument, error) {
 	defer dat.Close()
 	bytedata, _ := ioutil.ReadAll(dat)
 
+	// Try load in standard WT
 	var wt Wavetable
 	err = json.Unmarshal(bytedata, &wt)
 	if err != nil {
-		return nil, err
+		// Try load in Drumkit
+		var dk DrumKit
+		err = json.Unmarshal(bytedata, &dk)
+		if err != nil {
+			return nil, err
+		}
+		return &dk, nil
 	}
-	// Save future calculation
-	wt.length = len(wt.Audiodata)
 	return &wt, nil
 }
 
