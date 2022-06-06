@@ -26,7 +26,7 @@ func PlayJingleSynth(path string) {
 		kbd := jingle.KeyboardListener{}
 		kbd.SetInstrument(q)
 		kbd.StartMonitor()
-		speaker.Play(beep.Seq(kbd, beep.Callback(func() {
+		speaker.Play(beep.Seq(&kbd, beep.Callback(func() {
 			done <- true
 		})))
 	}

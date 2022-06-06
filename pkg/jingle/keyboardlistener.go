@@ -84,9 +84,9 @@ func (kbd *KeyboardListener) StartMonitor() {
 				}
 				switch e.VirtualKey.String() {
 				case "1":
-					stopFn()
 					kbd.running = false
-					break eventloop
+					stopFn()
+					return
 				}
 
 			case gowinkey.KeyUp:
@@ -108,12 +108,13 @@ func (kbd *KeyboardListener) SetInstrument(inst Instrument) {
 	kbd.instrument = inst
 }
 
-func (kbd KeyboardListener) Err() error {
+func (kbd *KeyboardListener) Err() error {
 	return nil
 }
 
-func (kbd KeyboardListener) Stream(samples [][2]float64) (n int, ok bool) {
+func (kbd *KeyboardListener) Stream(samples [][2]float64) (n int, ok bool) {
 	if !kbd.running {
+		fmt.Println("Off")
 		return 0, false
 	}
 	n, _ = kbd.instrument.Stream(samples)
