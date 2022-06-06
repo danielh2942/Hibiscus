@@ -153,6 +153,7 @@ type DrumKit struct {
 	lock               sync.RWMutex
 }
 
+// Init creates the mutex and then populates important details
 func (dk *DrumKit) Init() {
 	dk.lock = sync.RWMutex{}
 	dk.lengths = make([]int, len(dk.Audiodata))
@@ -162,6 +163,7 @@ func (dk *DrumKit) Init() {
 	}
 }
 
+// AddNote either adds a note or resets it to zero
 func (dk *DrumKit) AddNote(note int) error {
 	dk.lock.Lock()
 	defer dk.lock.Unlock()
@@ -182,21 +184,27 @@ func (dk *DrumKit) AddNote(note int) error {
 	return nil
 }
 
+// RemoveNote does nothing on a DrumKit, drums are triggered, not gated
 func (dk *DrumKit) RemoveNote(note int) error {
 	// Drums are triggered and not gated
 	return nil
 }
 
+// FlushNotes Does Nothing on a DrumKit
 func (dk *DrumKit) FlushNotes() {}
 
+// Err Returns nil
 func (dk *DrumKit) Err() error {
 	return nil
 }
 
+// Arpeggio Does Nothing on a DrumKit
 func (dk *DrumKit) Arpeggio(enabled bool) {}
 
+// ArpeggioRate does nothing on a DrumKit
 func (dk *DrumKit) ArpeggioRate(rate float64) {}
 
+//Stream populates the stream with info
 func (dk *DrumKit) Stream(samples [][2]float64) (n int, ok bool) {
 	dk.lock.Lock()
 	defer dk.lock.Unlock()
@@ -206,9 +214,8 @@ func (dk *DrumKit) Stream(samples [][2]float64) (n int, ok bool) {
 	for i := range samples {
 		var slice float64 = 0.0
 		for _, key := range dk.presentNotes {
-			slice += dk.Audiodata[key][dk.noteframePositions[key]]
+			slice += dk.Audiodata[key][dk.noteframePositions[key]] / float64(len(dk.presentNotes))
 		}
-		slice /= float64(len(dk.presentNotes))
 		samples[i][0] = slice
 		samples[i][1] = slice
 
