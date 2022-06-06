@@ -60,7 +60,6 @@ func (kbd *KeyboardListener) StartMonitor() {
 		"J": 11,
 	}
 	go func() {
-		arpVal := false
 		arpRate := 0
 		events, stopFn := gowinkey.Listen()
 	eventloop:
@@ -92,17 +91,18 @@ func (kbd *KeyboardListener) StartMonitor() {
 					}
 				case "B":
 					fmt.Println("Arp Triggered")
-					arpVal = !arpVal
-					kbd.instruments[kbd.instrument].Arpeggio(arpVal)
+					kbd.instruments[kbd.instrument].ToggleArpeggio()
 				case "M":
 					if arpRate < 60 {
 						arpRate++
+						fmt.Println("Set Arp to", arpRate, "Hz")
 						kbd.instruments[kbd.instrument].ArpeggioRate(float64(arpRate))
 					}
 
 				case "N":
 					if arpRate > 0 {
 						arpRate--
+						fmt.Println("Set Arp to", arpRate, "Hz")
 						kbd.instruments[kbd.instrument].ArpeggioRate(float64(arpRate))
 					}
 				}

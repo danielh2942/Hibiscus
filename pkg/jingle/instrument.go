@@ -2,7 +2,6 @@ package jingle
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 )
@@ -18,6 +17,7 @@ type Instrument interface {
 	// Arpeggio
 	Arpeggio(enabled bool)
 	ArpeggioRate(freq float64)
+	ToggleArpeggio()
 	// beep.Streamers functions
 	Err() error
 	Stream(samples [][2]float64) (length int, ok bool)
@@ -113,6 +113,10 @@ func (wt *Wavetable) Arpeggio(enabled bool) {
 	wt.arpStep = 0
 }
 
+func (wt *Wavetable) ToggleArpeggio() {
+	wt.arpeggio = !wt.arpeggio
+}
+
 // ArpeggioRate takes a frequency and acts accordingly,
 // It ignores the sign on the number provided
 func (wt *Wavetable) ArpeggioRate(freq float64) {
@@ -120,7 +124,6 @@ func (wt *Wavetable) ArpeggioRate(freq float64) {
 	wt.lock.Lock()
 	defer wt.lock.Unlock()
 	wt.arpRate = math.Abs(freq) / 44100.0
-	fmt.Println(wt.arpRate)
 }
 
 // Stream populates a chunk of an audio stream
@@ -216,6 +219,8 @@ func (dk *DrumKit) FlushNotes() {}
 func (dk *DrumKit) Err() error {
 	return nil
 }
+
+func (dk *DrumKit) ToggleArpeggio() {}
 
 // Arpeggio Does Nothing on a DrumKit
 func (dk *DrumKit) Arpeggio(enabled bool) {}
