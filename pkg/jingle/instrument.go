@@ -3,14 +3,17 @@ package jingle
 import (
 	"errors"
 	"math"
+	"sync"
 )
 
 // Instrument interface to make it less taxing for the author to use drumkits or wavetables.
 // They are the only instruments supported by Jingle
 type Instrument interface {
+	Init()
 	// Jingle specific audio engine stuff
 	AddNote(note int) error
 	RemoveNote(note int) error
+	FlushNotes()
 	// Arpeggio
 	Arpeggio(enabled bool)
 	ArpeggioRate(freq float64)
@@ -43,9 +46,16 @@ type Wavetable struct {
 	noteframePositions map[int]float64
 	arpeggio           bool
 	arpRate            float64
+	lock               sync.RWMutex
+}
+
+func (wt *Wavetable) Init() {
+	wt.lock = sync.RWMutex{}
 }
 
 func (wt *Wavetable) AddNote(note int) error {
+	wt.lock.Lock()
+	defer wt.lock.Unlock()
 	if len(wt.presentNotes) == 0 {
 		wt.presentNotes = make([]int, 1)
 		wt.presentNotes[0] = note
@@ -65,6 +75,8 @@ func (wt *Wavetable) AddNote(note int) error {
 }
 
 func (wt *Wavetable) RemoveNote(note int) error {
+	wt.lock.Lock()
+	defer wt.lock.Unlock()
 	for i, x := range wt.presentNotes {
 		if x == note {
 			wt.presentNotes = append(wt.presentNotes[:i], wt.presentNotes[i+1:]...)
@@ -74,6 +86,11 @@ func (wt *Wavetable) RemoveNote(note int) error {
 	}
 
 	return errors.New("note not present, ignoring")
+}
+
+func (wt *Wavetable) FlushNotes() {
+	wt.presentNotes = make([]int, 0)
+	wt.noteframePositions = map[int]float64{}
 }
 
 // Err returns an error (not ever in this case)
@@ -94,6 +111,8 @@ func (wt *Wavetable) ArpeggioRate(freq float64) {
 }
 
 func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
+	wt.lock.Lock()
+	defer wt.lock.Unlock()
 	myNumPresentNotes := len(wt.presentNotes)
 	if myNumPresentNotes == 0 {
 		return 0, false

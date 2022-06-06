@@ -2,7 +2,10 @@ module github.com/danielh2942/hibiscus
 
 go 1.18
 
-require github.com/faiface/beep v1.1.0
+require (
+	github.com/daspoet/gowinkey v0.0.6
+	github.com/faiface/beep v1.1.0
+)
 
 require (
 	github.com/hajimehoshi/go-mp3 v0.3.0 // indirect

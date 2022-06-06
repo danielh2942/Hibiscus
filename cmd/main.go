@@ -13,6 +13,7 @@ func main() {
 	//audioproc.Demo()
 	//PlayJingleSave("junk.json")
 	PlayJingleSynth("enya.json")
+	//jingle.KeyboardTest()
 }
 
 func PlayJingleSynth(path string) {
@@ -22,10 +23,10 @@ func PlayJingleSynth(path string) {
 	if q, err := jingle.LoadInWavetable(path); err != nil {
 		log.Panic("ERROR:", err)
 	} else {
-		q.AddNote(60)
-		q.AddNote(57)
-		q.AddNote(53)
-		speaker.Play(beep.Seq(q, beep.Callback(func() {
+		kbd := jingle.KeyboardListener{}
+		kbd.SetInstrument(q)
+		kbd.StartMonitor()
+		speaker.Play(beep.Seq(kbd, beep.Callback(func() {
 			done <- true
 		})))
 	}
