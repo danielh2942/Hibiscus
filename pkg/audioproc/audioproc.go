@@ -13,7 +13,7 @@ import (
 
 func Demo() {
 	cwd, _ := os.Getwd()
-	f, err := os.Open(filepath.Join(cwd, "../testaudio/test.mp3"))
+	f, err := os.Open(filepath.Join(cwd, "../../testaudio/test.mp3"))
 	if err != nil {
 		log.Fatalln("ERROR: ", err)
 	}

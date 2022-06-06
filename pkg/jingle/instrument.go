@@ -2,6 +2,7 @@ package jingle
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 )
@@ -47,6 +48,7 @@ type Wavetable struct {
 	noteframePositions map[int]float64
 	arpeggio           bool
 	arpRate            float64
+	arpStep            float64
 	lock               sync.RWMutex
 }
 
@@ -108,13 +110,17 @@ func (wt *Wavetable) Err() error {
 // Arpeggio toggles the use of an arpeggio
 func (wt *Wavetable) Arpeggio(enabled bool) {
 	wt.arpeggio = enabled
+	wt.arpStep = 0
 }
 
 // ArpeggioRate takes a frequency and acts accordingly,
 // It ignores the sign on the number provided
 func (wt *Wavetable) ArpeggioRate(freq float64) {
 	// changes each frame :)
+	wt.lock.Lock()
+	defer wt.lock.Unlock()
 	wt.arpRate = math.Abs(freq) / 44100.0
+	fmt.Println(wt.arpRate)
 }
 
 // Stream populates a chunk of an audio stream
@@ -127,6 +133,19 @@ func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
 	}
 	wtlen := float64(wt.length)
 	stepTable := getNoteSteps()
+	if wt.arpeggio {
+		// In case a key was lifted between samples
+		wt.arpStep = math.Mod(wt.arpStep, float64(len(wt.presentNotes)))
+		for i := range samples {
+			currNote := wt.presentNotes[int(wt.arpStep)]
+			val := wt.Audiodata[int(wt.noteframePositions[currNote])]
+			samples[i][0] = val
+			samples[i][1] = val
+			wt.noteframePositions[currNote] = math.Mod(wt.noteframePositions[currNote]+stepTable[currNote], wtlen-1)
+			wt.arpStep = math.Mod(wt.arpStep+wt.arpRate, float64(len(wt.presentNotes)))
+		}
+		return len(samples), true
+	}
 	for i := range samples {
 		samples[i][0] = 0
 		samples[i][1] = 0

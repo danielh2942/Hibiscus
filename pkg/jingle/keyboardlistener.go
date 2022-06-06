@@ -3,6 +3,7 @@ package jingle
 // Keyboard Listener
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/daspoet/gowinkey"
@@ -26,15 +27,22 @@ func KeyboardTest() {
 }
 
 type KeyboardListener struct {
-	activeKeys []string
-	instrument Instrument
-	octave     int
-	running    bool
+	activeKeys  []string
+	instruments []Instrument
+	instrument  int
+	octave      int
+	running     bool
 }
 
 func (kbd *KeyboardListener) StartMonitor() {
+	if len(kbd.instruments) == 0 {
+		kbd.running = false
+	}
+	kbd.instrument = 0
 	kbd.running = true
-	kbd.instrument.Init()
+	for _, inst := range kbd.instruments {
+		inst.Init()
+	}
 	kbd.octave = 5
 	kbd.activeKeys = make([]string, 0)
 	keyVals := map[string]int{
@@ -52,6 +60,8 @@ func (kbd *KeyboardListener) StartMonitor() {
 		"J": 11,
 	}
 	go func() {
+		arpVal := false
+		arpRate := 0
 		events, stopFn := gowinkey.Listen()
 	eventloop:
 		for e := range events {
@@ -59,34 +69,57 @@ func (kbd *KeyboardListener) StartMonitor() {
 			case gowinkey.KeyDown:
 				switch e.String() {
 				case "A", "W", "E", "T", "Y", "U", "S", "D", "F", "G", "H", "J":
-					fmt.Println(e.String())
 					for _, keys := range kbd.activeKeys {
 						if keys == e.String() {
 							continue eventloop
 						}
 					}
 					kbd.activeKeys = append(kbd.activeKeys, e.String())
-					kbd.instrument.AddNote((12 * kbd.octave) + keyVals[e.String()])
+					kbd.instruments[kbd.instrument].AddNote((12 * kbd.octave) + keyVals[e.String()])
 
 				case "Z":
 					if kbd.octave > 0 {
-						kbd.instrument.FlushNotes()
+						kbd.instruments[kbd.instrument].FlushNotes()
 						kbd.activeKeys = make([]string, 0)
 						kbd.octave--
 					}
 
 				case "X":
 					if kbd.octave < 11 {
-						kbd.instrument.FlushNotes()
+						kbd.instruments[kbd.instrument].FlushNotes()
 						kbd.activeKeys = make([]string, 0)
 						kbd.octave++
 					}
+				case "B":
+					fmt.Println("Arp Triggered")
+					arpVal = !arpVal
+					kbd.instruments[kbd.instrument].Arpeggio(arpVal)
+				case "M":
+					if arpRate < 60 {
+						arpRate++
+						kbd.instruments[kbd.instrument].ArpeggioRate(float64(arpRate))
+					}
+
+				case "N":
+					if arpRate > 0 {
+						arpRate--
+						kbd.instruments[kbd.instrument].ArpeggioRate(float64(arpRate))
+					}
 				}
 				switch e.VirtualKey.String() {
-				case "1":
+				case "TAB":
 					kbd.running = false
 					stopFn()
 					return
+				case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
+					idx, _ := strconv.Atoi(e.VirtualKey.String())
+					if idx == 0 {
+						idx = 9
+					} else {
+						idx--
+					}
+					kbd.instruments[kbd.instrument].FlushNotes()
+					kbd.instrument = idx % len(kbd.instruments)
 				}
 
 			case gowinkey.KeyUp:
@@ -95,7 +128,7 @@ func (kbd *KeyboardListener) StartMonitor() {
 					for idx, keys := range kbd.activeKeys {
 						if keys == e.String() {
 							kbd.activeKeys = append(kbd.activeKeys[:idx], kbd.activeKeys[idx+1:]...)
-							kbd.instrument.RemoveNote((12 * kbd.octave) + keyVals[e.String()])
+							kbd.instruments[kbd.instrument].RemoveNote((12 * kbd.octave) + keyVals[e.String()])
 						}
 					}
 				}
@@ -104,8 +137,13 @@ func (kbd *KeyboardListener) StartMonitor() {
 	}()
 }
 
-func (kbd *KeyboardListener) SetInstrument(inst Instrument) {
-	kbd.instrument = inst
+func (kbd *KeyboardListener) AddInstrument(inst Instrument) {
+	if len(kbd.instruments) == 0 {
+		kbd.instruments = make([]Instrument, 1)
+		kbd.instruments[0] = inst
+		return
+	}
+	kbd.instruments = append(kbd.instruments, inst)
 }
 
 func (kbd *KeyboardListener) Err() error {
@@ -117,6 +155,6 @@ func (kbd *KeyboardListener) Stream(samples [][2]float64) (n int, ok bool) {
 		fmt.Println("Off")
 		return 0, false
 	}
-	n, _ = kbd.instrument.Stream(samples)
+	n, _ = kbd.instruments[kbd.instrument].Stream(samples)
 	return n, true
 }
