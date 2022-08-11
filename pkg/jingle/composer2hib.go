@@ -2,7 +2,7 @@ package jingle
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"math"
 	"os"
 	"path"
@@ -22,7 +22,7 @@ func Composer2Hib(filename string, bpm int) (queue *audioproc.Queue, err error) 
 		return nil, err
 	}
 	defer dat.Close()
-	bytedata, _ := ioutil.ReadAll(dat)
+	bytedata, _ := io.ReadAll(dat)
 
 	var composerData map[int][][3]int
 	json.Unmarshal(bytedata, &composerData)

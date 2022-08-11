@@ -6,6 +6,23 @@ import (
 	"sync"
 )
 
+/*
+ * Arpeggio Related Enums
+ */
+
+type ArpState int
+
+const (
+	EArpUp ArpState = iota
+	EArpDown
+	EArpBidirectional
+	EArpUnknown
+)
+
+func (as ArpState) String() string {
+	return [...]string{"EArpUp", "EArpDown", "EArpBidirectional", "EArpUnknown"}[as]
+}
+
 // Instrument interface to make it less taxing for the author to use drumkits or wavetables.
 // They are the only instruments supported by Jingle
 type Instrument interface {
@@ -18,6 +35,8 @@ type Instrument interface {
 	Arpeggio(enabled bool)
 	ArpeggioRate(freq float64)
 	ToggleArpeggio()
+	SetArpeggioState(s ArpState)
+	GetArpeggioState() ArpState
 	// beep.Streamers functions
 	Err() error
 	Stream(samples [][2]float64) (length int, ok bool)
@@ -47,8 +66,10 @@ type Wavetable struct {
 	presentNotes       []int
 	noteframePositions map[int]float64
 	arpeggio           bool
+	arpReverse         bool
 	arpRate            float64
 	arpStep            float64
+	arpState           ArpState
 	lock               sync.RWMutex
 }
 
@@ -57,6 +78,8 @@ func (wt *Wavetable) Init() {
 	// Save future calculation
 	wt.length = len(wt.Audiodata)
 	wt.lock = sync.RWMutex{}
+	wt.arpReverse = false
+	wt.arpState = EArpUp
 }
 
 // AddNote adds a note to the list of all present notes playing in the instrument
@@ -126,6 +149,19 @@ func (wt *Wavetable) ArpeggioRate(freq float64) {
 	wt.arpRate = math.Abs(freq) / 44100.0
 }
 
+// SetArpeggioState allows for different arpeggio patterns,
+// Currently it only supports up,down and bidirectional
+func (wt *Wavetable) SetArpeggioState(state ArpState) {
+	wt.lock.Lock()
+	defer wt.lock.Unlock()
+	wt.arpState = state
+}
+
+// GetArpeggiostate returns the arpeggio state
+func (wt *Wavetable) GetArpeggioState() ArpState {
+	return wt.arpState
+}
+
 // Stream populates a chunk of an audio stream
 func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
 	wt.lock.Lock()
@@ -137,6 +173,17 @@ func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
 	wtlen := float64(wt.length)
 	stepTable := getNoteSteps()
 	if wt.arpeggio {
+		var arpRateTemp float64
+		switch wt.arpState {
+		case EArpDown:
+			arpRateTemp = wt.arpRate * -1
+		default:
+			if wt.arpReverse {
+				arpRateTemp = wt.arpRate * -1
+			} else {
+				arpRateTemp = wt.arpRate
+			}
+		}
 		// In case a key was lifted between samples
 		wt.arpStep = math.Mod(wt.arpStep, float64(len(wt.presentNotes)))
 		for i := range samples {
@@ -145,7 +192,24 @@ func (wt *Wavetable) Stream(samples [][2]float64) (length int, more bool) {
 			samples[i][0] = val
 			samples[i][1] = val
 			wt.noteframePositions[currNote] = math.Mod(wt.noteframePositions[currNote]+stepTable[currNote], wtlen-1)
-			wt.arpStep = math.Mod(wt.arpStep+wt.arpRate, float64(len(wt.presentNotes)))
+			wt.arpStep = wt.arpStep + arpRateTemp
+			if wt.arpStep >= float64(len(wt.presentNotes)) || wt.arpStep < 0 {
+				switch wt.arpState {
+				case EArpUp:
+					wt.arpStep = 0
+				case EArpBidirectional:
+					arpRateTemp *= -1
+					if wt.arpReverse {
+						wt.arpStep += 1
+					} else {
+						wt.arpStep -= 1
+					}
+					wt.arpStep += (2 * arpRateTemp)
+					wt.arpReverse = !wt.arpReverse
+				case EArpDown:
+					wt.arpStep = float64(len(wt.presentNotes)) - 1
+				}
+			}
 		}
 		return len(samples), true
 	}
@@ -227,6 +291,12 @@ func (dk *DrumKit) Arpeggio(enabled bool) {}
 
 // ArpeggioRate does nothing on a DrumKit
 func (dk *DrumKit) ArpeggioRate(rate float64) {}
+
+func (dk *DrumKit) SetArpeggioState(state ArpState) {}
+
+func (dk *DrumKit) GetArpeggioState() ArpState {
+	return EArpUnknown
+}
 
 //Stream populates the stream with info
 func (dk *DrumKit) Stream(samples [][2]float64) (n int, ok bool) {

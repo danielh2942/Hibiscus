@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"time"
 
 	"github.com/danielh2942/hibiscus/pkg/jingle"
+	"github.com/danielh2942/hibiscus/pkg/keyboardlistener"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/speaker"
 )
@@ -17,12 +18,13 @@ func main() {
 	fmt.Println("Press \"tab\" to close")
 	fmt.Println("Z - octave down")
 	fmt.Println("X - octave up")
-	fmt.Println("B - Arp On")
+	fmt.Println("V - Arp On")
+	fmt.Println("B - Change Arp State")
 	fmt.Println("N - Arp Freq Down")
 	fmt.Println("M - Arp Freq Up")
 	//audioproc.Demo()
 	//PlayJingleSave("junk.json")
-	files, err := ioutil.ReadDir("./jingleinstruments")
+	files, err := os.ReadDir("./jingleinstruments")
 	if err != nil {
 		log.Panic("ERROR:", err)
 	}
@@ -38,7 +40,7 @@ func PlayJingleSynth(paths []string) {
 	sr := beep.SampleRate(44100)
 	speaker.Init(sr, sr.N(time.Second/10))
 	done := make(chan bool)
-	kbd := jingle.KeyboardListener{}
+	kbd := keyboardlistener.KeyboardListener{}
 	for _, path := range paths {
 		if q, err := jingle.LoadInWavetable(path); err != nil {
 			log.Panic("ERROR:", err)

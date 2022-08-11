@@ -3,7 +3,7 @@ package jingle
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 )
@@ -20,7 +20,7 @@ func LoadInWavetable(filename string) (Instrument, error) {
 		return nil, err
 	}
 	defer dat.Close()
-	bytedata, _ := ioutil.ReadAll(dat)
+	bytedata, _ := io.ReadAll(dat)
 
 	// Try load in standard WT
 	var wt Wavetable

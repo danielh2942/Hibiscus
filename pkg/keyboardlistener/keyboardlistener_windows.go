@@ -1,11 +1,15 @@
-package jingle
+//go:build windows
+// +build windows
 
-// Keyboard Listener
+package keyboardlistener
+
+// Windows Keyboard Listener
 import (
 	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/danielh2942/hibiscus/pkg/jingle"
 	"github.com/daspoet/gowinkey"
 )
 
@@ -28,7 +32,7 @@ func KeyboardTest() {
 
 type KeyboardListener struct {
 	activeKeys  []string
-	instruments []Instrument
+	instruments []jingle.Instrument
 	instrument  int
 	octave      int
 	running     bool
@@ -89,9 +93,22 @@ func (kbd *KeyboardListener) StartMonitor() {
 						kbd.activeKeys = make([]string, 0)
 						kbd.octave++
 					}
-				case "B":
+				case "V":
 					fmt.Println("Arp Triggered")
 					kbd.instruments[kbd.instrument].ToggleArpeggio()
+				case "B":
+					fmt.Println("Arp State Toggled")
+					switch kbd.instruments[kbd.instrument].GetArpeggioState() {
+					case jingle.EArpUp:
+						fmt.Println("Arp Set to Down")
+						kbd.instruments[kbd.instrument].SetArpeggioState(jingle.EArpDown)
+					case jingle.EArpDown:
+						fmt.Println("Arp Set to Bidirectional")
+						kbd.instruments[kbd.instrument].SetArpeggioState(jingle.EArpBidirectional)
+					case jingle.EArpBidirectional:
+						fmt.Println("Arp Set to Up")
+						kbd.instruments[kbd.instrument].SetArpeggioState(jingle.EArpUp)
+					}
 				case "M":
 					if arpRate < 60 {
 						arpRate++
@@ -137,9 +154,9 @@ func (kbd *KeyboardListener) StartMonitor() {
 	}()
 }
 
-func (kbd *KeyboardListener) AddInstrument(inst Instrument) {
+func (kbd *KeyboardListener) AddInstrument(inst jingle.Instrument) {
 	if len(kbd.instruments) == 0 {
-		kbd.instruments = make([]Instrument, 1)
+		kbd.instruments = make([]jingle.Instrument, 1)
 		kbd.instruments[0] = inst
 		return
 	}
